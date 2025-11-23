@@ -8,19 +8,19 @@
 <style>
   body,html,#map{height:100vh;margin:0;background:#0a0e17}
   .panel{
-    position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    position:absolute;top:12px;right:12px;
     background:rgba(10,14,23,0.92);backdrop-filter:blur(16px);
     border:1px solid #30363d;border-radius:18px;padding:10px 20px;
     color:white;font-family:system-ui;z-index:1000;display:flex;gap:20px;align-items:center;
-    box-shadow:0 10px 40px rgba(0,0,0,0.7);
+    box-shadow:0 10px 40px rgba(0,0,0,0.7);pointer-events:none;
   }
   .legend-item{display:flex;align-items:center;gap:10px;font-weight:600}
   .dot{width:18px;height:18px;border-radius:50%;box-shadow:0 0 14px;}
   .progress{
-    position:absolute;top:78px;left:50%;transform:translateX(-50%);
+    position:absolute;top:78px;right:12px;
     background:rgba(88,166,255,0.2);color:#58a6ff;padding:8px 16px;
     border-radius:12px;border:1px solid #58a6ff4d;font-weight:600;font-size:14px;
-    backdrop-filter:blur(10px);z-index:1000;
+    backdrop-filter:blur(10px);z-index:1000;pointer-events:none;
   }
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:rgba(13,17,23,0.95);color:white}
   .leaflet-popup-content{margin:14px 16px;text-align:center;font-family:system-ui}
@@ -51,7 +51,6 @@
 const map = L.map('map', {zoomControl:false}).setView([-37.8176,144.9678], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
 
-// Perfectly circular markers (no black squares)
 const greenIcon = L.divIcon({className:'custom-div-icon', html:`<div class="marker-pin done"></div>`, iconSize:[42,42], iconAnchor:[21,21]});
 const redIcon   = L.divIcon({className:'custom-div-icon', html:`<div class="marker-pin todo"></div>`, iconSize:[42,42], iconAnchor:[21,21]});
 
@@ -80,45 +79,47 @@ updateProgress();
 places.forEach(p => {
   const marker = L.marker([p.lat, p.lng], {icon: p.checked ? greenIcon : redIcon}).addTo(map);
 
-  function updatePopup() {
-    marker.setPopupContent(`
+  function getPopupContent() {
+    return `
       <div>
         <b style="font-size:17px;color:#fff;display:block;margin-bottom:10px">${p.name}</b>
-        <button class="popup-btn ${p.checked?'undo-btn':'done-btn'}" onclick="toggleCheck(${p.id})">
+        <button class="popup-btn ${p.checked ? 'undo-btn' : 'done-btn'}" onclick="toggleCheck(${p.id})">
           ${p.checked ? 'Undo' : 'Done'}
         </button>
         <a class="popup-btn maps-btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}" target="_blank">
           Open in Google Maps
         </a>
       </div>
-    `);
+    `;
   }
 
-  marker.bindPopup(updatePopup, {closeButton:false, offset:[0,-6]});
-  marker.on('popupopen', updatePopup);
+  marker.bindPopup(getPopupContent, {closeButton:false, offset:[0,-6]});
+
+  marker.on('click', () => {
+    map.panTo([p.lat, p.lng], {animate:true, duration:0.5});
+    marker.openPopup();
+  });
 });
 
 window.toggleCheck = function(id) {
   const p = places.find(x => x.id === id);
   p.checked = !p.checked;
 
-  // Save
   const s = {};
   places.forEach(x => s[x.id] = x.checked);
   localStorage.setItem("melb2025", JSON.stringify(s));
   updateProgress();
 
-  // Update all markers (simple way that works perfectly)
-  location.reload(); // Forces fresh render with correct button & pulse
+  location.reload(); // Reload to update all markers and popups smoothly
 };
 
 map.fitBounds(L.featureGroup(places.map(p => L.marker([p.lat,p.lng]))).getBounds().pad(0.15));
 
-// CSS for perfectly round markers + pulses
+// CSS for markers + pulses
 const style = document.createElement('style');
 style.textContent = `
   .custom-div-icon .marker-pin{
-    width:42px;height:42px;border-radius:50%;border:5px solid white;
+    width:32px;height:32px;border-radius:50%;border:5px solid white;
     box-shadow:0 0 20px 4px currentColor;position:absolute;top:0;left:0;
   }
   .marker-pin.done{background:#00ff9d;color:#00ff9d;animation:bigpulse 1.6s ease-out forwards}
