@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Melbourne Checkable Map</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>html,body,#map{height:100vh;margin:0;background:#111}</style>
+</head><body><div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map("map").setView([-37.8176,144.9678],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+const green=L.divIcon({html:"<div style='background:#0b0;width:28px;height:28px;border:5px solid white;border-radius:50%;box-shadow:0 0 15px lime'></div>",iconSize:[38,38],iconAnchor:[19,19]});
+const red=L.divIcon({html:"<div style='background:#c00;width:28px;height:28px;border:5px solid white;border-radius:50%;box-shadow:0 0 15px #f66'></div>",iconSize:[38,38],iconAnchor:[19,19]});
+const places=[
+  {id:1,name:"Federation Square / NGV Australia",lat:-37.8178,lng:144.9687,checked:true},
+  {id:2,name:"Queen Victoria Market",lat:-37.8076,lng:144.9567},
+  {id:3,name:"State Library Victoria",lat:-37.8098,lng:144.9652},
+  {id:4,name:"Fortress Melbourne (Emporium)",lat:-37.8119,lng:144.9637},
+  {id:5,name:"Laneways & Street Art (Hosier Lane)",lat:-37.8168,lng:144.9691},
+  {id:6,name:"Docklands",lat:-37.8150,lng:144.9460},
+  {id:7,name:"Royal Botanic Gardens",lat:-37.8334,lng:144.9803},
+  {id:8,name:"South Melbourne Market",lat:-37.8350,lng:144.9600},
+  {id:9,name:"St Kilda Beach & Pier",lat:-37.8679,lng:144.9740}
+];
+const saved=JSON.parse(localStorage.getItem("melb2025")||"{}");
+places.forEach(p=>p.checked=saved[p.id]??p.checked??false);
+places.forEach(p=>{
+  const m=L.marker([p.lat,p.lng],{icon:p.checked?green:red}).addTo(map)
+    .bindPopup(`<b style="font-size:16px">${p.name}</b><br><span style="color:${p.checked?"lime":"orange"}">${p.checked?"Done":"Click to check"}</span>`);
+  m.on("click",()=>{p.checked=!p.checked;m.setIcon(p.checked?green:red);
+    m.getPopup().setContent(`<b style="font-size:16px">${p.name}</b><br><span style="color:${p.checked?"lime":"orange"}">${p.checked?"Done":"Click to check"}</span>`);
+    const s={};places.forEach(x=>s[x.id]=x.checked);localStorage.setItem("melb2025",JSON.stringify(s));
+  });
+});
+map.fitBounds(L.featureGroup(places.map(p=>L.marker([p.lat,p.lng]))).getBounds().pad(0.15));
+</script></body></html>
