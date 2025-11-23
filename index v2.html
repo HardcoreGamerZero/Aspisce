@@ -1,105 +1,130 @@
-<!-- update -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Melbourne 2025 • Checkable Map</title>
+<title>Melbourne 2025 • Trip Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  body,html,#map{height:100vh;margin:0;background:#0d1117}
-  .legend{
+  body,html,#map{height:100vh;margin:0;background:#0a0e17}
+  .panel{
     position:absolute;top:12px;left:50%;transform:translateX(-50%);
-    background:rgba(13,17,23,0.9);color:white;padding:10px 18px;
-    border-radius:16px;border:1px solid #30363d;box-shadow:0 8px 32px rgba(0,0,0,0.6);
-    font-family:system-ui,-apple-system,sans-serif;z-index:1000;
-    backdrop-filter:blur(12px);display:flex;align-items:center;gap:16px;
+    background:rgba(10,14,23,0.92);backdrop-filter:blur(16px);
+    border:1px solid #30363d;border-radius:18px;padding:10px 20px;
+    color:white;font-family:system-ui;z-index:1000;display:flex;gap:20px;align-items:center;
+    box-shadow:0 10px 40px rgba(0,0,0,0.7);
   }
-  .legend span{font-weight:600;font-size:15px}
-  .dot{width:20px;height:20px;border-radius:50%;box-shadow:0 0 12px;}
+  .legend-item{display:flex;align-items:center;gap:10px;font-weight:600}
+  .dot{width:18px;height:18px;border-radius:50%;box-shadow:0 0 14px;}
   .progress{
-    position:absolute;top:70px;left:50%;transform:translateX(-50%);
-    background:rgba(13,17,23,0.9);color:#58a6ff;padding:8px 16px;
-    border-radius:12px;border:1px solid #30363d;font-weight:600;z-index:1000;
-    backdrop-filter:blur(10px);font-size:14px;
+    position:absolute;top:78px;left:50%;transform:translateX(-50%);
+    background:rgba(88,166,255,0.2);color:#58a6ff;padding:8px 16px;
+    border-radius:12px;border:1px solid #58a6ff4d;font-weight:600;font-size:14px;
+    backdrop-filter:blur(10px);z-index:1000;
   }
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:rgba(13,17,23,0.95);color:white}
+  .leaflet-popup-content{margin:14px 16px;text-align:center;font-family:system-ui}
+  .popup-btn{
+    margin:8px 5px 0;padding:10px 18px;border:none;border-radius:12px;
+    font-weight:600;cursor:pointer;transition:all 0.25s;display:inline-block;
+    text-decoration:none;color:white;
+  }
+  .done-btn{background:#00ff9d;color:#000}
+  .done-btn:hover{background:#00cc7a}
+  .undo-btn{background:#ff3860;color:white}
+  .undo-btn:hover{background:#e03357}
+  .maps-btn{background:#4285f4}
+  .maps-btn:hover{background:#3367d6}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<div class="legend">
-  <div><div class="dot" style="background:#00ff9d;box-shadow:0 0 16px #00ff9d"></div> Done</div>
-  <div><div class="dot" style="background:#ff3860;box-shadow:0 0 16px #ff3860"></div> To do</div>
+<div class="panel">
+  <div class="legend-item"><div class="dot" style="background:#00ff9d;box-shadow:0 0 16px #00ff9d"></div>Done</div>
+  <div class="legend-item"><div class="dot" style="background:#ff3860;box-shadow:0 0 16px #ff3860"></div>To Do</div>
 </div>
 <div class="progress" id="progress">0 / 9 completed</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map', {zoomControl:false}).setView([-37.8176,144.9678],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19,
-  attribution:'© OpenStreetMap'
-}).addTo(map);
+const map = L.map('map', {zoomControl:false}).setView([-37.8176,144.9678], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
 
-// Ultra-pretty markers
-const green = L.divIcon({className:'gmarker',html:`<div style="background:#00ff9d;width:30px;height:30px;border:5px solid white;border-radius:50%;box-shadow:0 0 20px #00ff9d;animation:pulse 2s infinite"></div>`,iconSize:[40,40],iconAnchor:[20,20]});
-const red   = L.divIcon({className:'rmarker',html:`<div style="background:#ff3860;width:30px;height:30px;border:5px solid white;border-radius:50%;box-shadow:0 0 20px #ff3860;animation:pulse 2s infinite"></div>`,iconSize:[40,40],iconAnchor:[20,20]});
+// Perfectly circular markers (no black squares)
+const greenIcon = L.divIcon({className:'custom-div-icon', html:`<div class="marker-pin done"></div>`, iconSize:[42,42], iconAnchor:[21,21]});
+const redIcon   = L.divIcon({className:'custom-div-icon', html:`<div class="marker-pin todo"></div>`, iconSize:[42,42], iconAnchor:[21,21]});
 
 const places = [
-  {id:1,name:"Federation Square / NGV Australia",lat:-37.8178,lng:144.9687,checked:true},
-  {id:2,name:"Queen Victoria Market",lat:-37.8076,lng:144.9567},
-  {id:3,name:"State Library Victoria",lat:-37.8098,lng:144.9652},
-  {id:4,name:"Fortress Melbourne (Emporium)",lat:-37.8119,lng:144.9637},
-  {id:5,name:"Laneways & Street Art (Hosier Lane)",lat:-37.8168,lng:144.9691},
-  {id:6,name:"Docklands",lat:-37.8150,lng:144.9460},
-  {id:7,name:"Royal Botanic Gardens",lat:-37.8334,lng:144.9803},
-  {id:8,name:"South Melbourne Market",lat:-37.8350,lng:144.9600},
-  {id:9,name:"St Kilda Beach & Pier",lat:-37.8679,lng:144.9740}
+  {id:1,name:"Federation Square / NGV Australia",lat:-37.8178,lng:144.9687,checked:true,address:"Federation Square, Melbourne VIC 3000"},
+  {id:2,name:"Queen Victoria Market",lat:-37.8076,lng:144.9567,address:"Queen Victoria Market, Melbourne VIC 3000"},
+  {id:3,name:"State Library Victoria",lat:-37.8098,lng:144.9652,address:"State Library Victoria, Swanston St, Melbourne VIC 3000"},
+  {id:4,name:"Fortress Melbourne (Emporium)",lat:-37.8119,lng:144.9637,address:"Emporium Melbourne, 287 Lonsdale St, Melbourne VIC 3000"},
+  {id:5,name:"Laneways & Street Art (Hosier Lane)",lat:-37.8168,lng:144.9691,address:"Hosier Lane, Melbourne VIC 3000"},
+  {id:6,name:"Docklands",lat:-37.8150,lng:144.9460,address:"Docklands VIC 3008"},
+  {id:7,name:"Royal Botanic Gardens",lat:-37.8334,lng:144.9803,address:"Royal Botanic Gardens Victoria, Birdwood Ave, South Yarra VIC 3141"},
+  {id:8,name:"South Melbourne Market",lat:-37.8350,lng:144.9600,address:"South Melbourne Market, 322-326 Coventry St, South Melbourne VIC 3205"},
+  {id:9,name:"St Kilda Beach & Pier",lat:-37.8679,lng:144.9740,address:"St Kilda Pier, St Kilda VIC 3182"}
 ];
 
-// Load saved progress
+// Load saved state
 const saved = JSON.parse(localStorage.getItem("melb2025")||"{}");
-places.forEach(p=>p.checked = saved[p.id]??p.checked??false);
+places.forEach(p => p.checked = saved[p.id] ?? p.checked ?? false);
 
-function updateProgress(){
-  const done = places.filter(p=>p.checked).length;
+function updateProgress() {
+  const done = places.filter(p => p.checked).length;
   document.getElementById("progress").textContent = `${done} / ${places.length} completed`;
 }
 updateProgress();
 
-places.forEach(p=>{
-  const marker = L.marker([p.lat,p.lng],{icon:p.checked?green:red}).addTo(map)
-    .bindPopup(`<div style="font-family:system-ui;text-align:center">
-      <b style="font-size:17px;color:#fff">${p.name}</b><br>
-      <span style="color:${p.checked?'#00ff9d':'#ff3860'};font-weight:600">
-        ${p.checked?'Done':'Click to check'}
-      </span>
-    </div>`,{closeButton:false,offset:[0,-10]});
+places.forEach(p => {
+  const marker = L.marker([p.lat, p.lng], {icon: p.checked ? greenIcon : redIcon}).addTo(map);
 
-  marker.on('click',()=>{
-    p.checked = !p.checked;
-    marker.setIcon(p.checked?green:red);
-    marker.getPopup().setContent(`<div style="font-family:system-ui;text-align:center">
-      <b style="font-size:17px;color:#fff">${p.name}</b><br>
-      <span style="color:${p.checked?'#00ff9d':'#ff3860'};font-weight:600">
-        ${p.checked?'Done':'Click to check'}
-      </span>
-    </div>`);
-    const s={};places.forEach(x=>s[x.id]=x.checked);
-    localStorage.setItem("melb2025",JSON.stringify(s));
-    updateProgress();
-  });
+  function updatePopup() {
+    marker.setPopupContent(`
+      <div>
+        <b style="font-size:17px;color:#fff;display:block;margin-bottom:10px">${p.name}</b>
+        <button class="popup-btn ${p.checked?'undo-btn':'done-btn'}" onclick="toggleCheck(${p.id})">
+          ${p.checked ? 'Undo' : 'Done'}
+        </button>
+        <a class="popup-btn maps-btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}" target="_blank">
+          Open in Google Maps
+        </a>
+      </div>
+    `);
+  }
+
+  marker.bindPopup(updatePopup, {closeButton:false, offset:[0,-6]});
+  marker.on('popupopen', updatePopup);
 });
 
-// Smooth zoom to all pins
-map.fitBounds(L.featureGroup(places.map(p=>L.marker([p.lat,p.lng]))).getBounds().pad(0.15));
+window.toggleCheck = function(id) {
+  const p = places.find(x => x.id === id);
+  p.checked = !p.checked;
 
-// Subtle pulse animation
-const style=document.createElement('style');
-style.textContent=`
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,255,157,0.7)}70%{box-shadow:0 0 0 12px rgba(0,255,157,0)}100%{box-shadow:0 0 0 0 rgba(0,255,157,0)}}
-.rmarker div{animation:pulse 2s infinite cubic-bezier(0.4,0,0.6,1)!important}
+  // Save
+  const s = {};
+  places.forEach(x => s[x.id] = x.checked);
+  localStorage.setItem("melb2025", JSON.stringify(s));
+  updateProgress();
+
+  // Update all markers (simple way that works perfectly)
+  location.reload(); // Forces fresh render with correct button & pulse
+};
+
+map.fitBounds(L.featureGroup(places.map(p => L.marker([p.lat,p.lng]))).getBounds().pad(0.15));
+
+// CSS for perfectly round markers + pulses
+const style = document.createElement('style');
+style.textContent = `
+  .custom-div-icon .marker-pin{
+    width:42px;height:42px;border-radius:50%;border:5px solid white;
+    box-shadow:0 0 20px 4px currentColor;position:absolute;top:0;left:0;
+  }
+  .marker-pin.done{background:#00ff9d;color:#00ff9d;animation:bigpulse 1.6s ease-out forwards}
+  .marker-pin.todo{background:#ff3860;color:#ff3860;animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,56,96,0.7)}70%{box-shadow:0 0 0 14px rgba(255,56,96,0)}100%{box-shadow:0 0 0 0 rgba(255,56,96,0)}}
+  @keyframes bigpulse{0%{box-shadow:0 0 0 0 rgba(0,255,157,0.9)}100%{box-shadow:0 0 0 40px rgba(0,255,157,0)}}
 `;
 document.head.appendChild(style);
 </script>
